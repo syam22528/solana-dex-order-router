@@ -25,14 +25,18 @@ async function start() {
     },
   });
 
+  // Global database instance
+  let db: Database;
+
   try {
     // Register WebSocket plugin
     await fastify.register(websocketPlugin);
 
     // Initialize database
-    const db = new Database();
+    console.log('🔌 Connecting to database...');
+    db = new Database();
     await db.initialize();
-    await db.close();
+    console.log('✅ Database connected');
 
     // Setup routes
     setupRoutes(fastify);
@@ -66,6 +70,7 @@ async function start() {
         
         await worker.close();
         await fastify.close();
+        if (db) await db.close();
         
         process.exit(0);
       });

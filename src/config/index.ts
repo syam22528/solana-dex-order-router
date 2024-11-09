@@ -37,6 +37,8 @@ const parseDbUrl = (url?: string) => {
     database: parsed.pathname.slice(1), // Remove leading '/'
     user: parsed.username,
     password: parsed.password,
+    // Railway PostgreSQL requires SSL
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
   };
 };
 
