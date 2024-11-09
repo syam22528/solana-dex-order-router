@@ -119,7 +119,8 @@ Redis handles two roles: it persists the BullMQ job queue and caches active orde
 **Real-time Updates**
 
 Throughout the entire process, every status change gets streamed back to the client over the WebSocket connection. The client sees PENDING → ROUTING → BUILDING → SUBMITTED → CONFIRMED with details like which DEX was selected and the final transaction hash.
-```
+
+````
 
 ## Quick Start
 
@@ -147,7 +148,7 @@ npm run docker:up
 
 # 5. Start development server
 npm run dev
-```
+````
 
 ### Verify Installation
 
@@ -590,6 +591,12 @@ REASON: 0.099% better output (75,225 vs 75,150)
 | **Initial Delay**  | 1 second            | Doubles per retry  |
 
 ## Deployment
+
+**Live Production URL:** https://web-production-12929.up.railway.app
+
+**Health Check:** https://web-production-12929.up.railway.app/health
+
+The application is deployed on Railway with PostgreSQL and Redis databases. All endpoints are production-ready and accessible via the URLs above.
 
 ### Environment Variables
 
