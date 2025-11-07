@@ -17,15 +17,35 @@ export class MockDexRouter {
   }
 
   /**
+   * Handle SOL wrapping/unwrapping
+   * Native SOL must be wrapped to WSOL (wrapped SOL) for DEX operations
+   */
+  private needsWrapping(tokenIn: string, tokenOut: string): { wrap: boolean; unwrap: boolean } {
+    return {
+      wrap: tokenIn === 'SOL' && tokenOut !== 'SOL',
+      unwrap: tokenIn !== 'SOL' && tokenOut === 'SOL',
+    };
+  }
+
+  /**
    * Get quote from Raydium (mock)
    * Simulates 200ms network latency
    * Price variance: ±2-4% from base
+   * Handles wrapped SOL for native token swaps
    */
   async getRaydiumQuote(
     tokenIn: string,
     tokenOut: string,
     amount: number
   ): Promise<DexQuote> {
+    // Check if we need to wrap/unwrap SOL
+    const { wrap, unwrap } = this.needsWrapping(tokenIn, tokenOut);
+    
+    // Add wrapping delay if needed (50ms for wrap/unwrap operation)
+    if (wrap || unwrap) {
+      await sleep(50);
+    }
+
     // Simulate network delay
     await sleep(200);
 
@@ -51,12 +71,21 @@ export class MockDexRouter {
    * Get quote from Meteora (mock)
    * Simulates 200ms network latency
    * Price variance: ±3-5% from base (slightly more volatile)
+   * Handles wrapped SOL for native token swaps
    */
   async getMeteorQuote(
     tokenIn: string,
     tokenOut: string,
     amount: number
   ): Promise<DexQuote> {
+    // Check if we need to wrap/unwrap SOL
+    const { wrap, unwrap } = this.needsWrapping(tokenIn, tokenOut);
+    
+    // Add wrapping delay if needed (50ms for wrap/unwrap operation)
+    if (wrap || unwrap) {
+      await sleep(50);
+    }
+
     // Simulate network delay
     await sleep(200);
 
@@ -144,10 +173,20 @@ export class MockDexRouter {
   /**
    * Execute swap on selected DEX (mock)
    * Simulates 2-3 second execution time
+   * Handles SOL wrapping/unwrapping if needed
    * 5% chance of random failure (for testing error handling)
    */
   async executeSwap(dex: DexProvider, order: Order): Promise<SwapResult> {
-    // Simulate execution time (2-3 seconds)
+    // Check if we need to wrap/unwrap SOL
+    const { wrap, unwrap } = this.needsWrapping(order.tokenIn, order.tokenOut);
+    
+    // Step 1: Wrap SOL if needed (50ms)
+    if (wrap) {
+      console.log(`[${dex}] Wrapping ${order.amount} SOL to WSOL...`);
+      await sleep(50);
+    }
+
+    // Step 2: Execute swap (2-3 seconds)
     const executionTime = 2000 + Math.random() * 1000;
     await sleep(executionTime);
 
@@ -157,6 +196,12 @@ export class MockDexRouter {
         success: false,
         error: `${dex} network timeout - transaction failed to confirm`,
       };
+    }
+
+    // Step 3: Unwrap SOL if needed (50ms)
+    if (unwrap) {
+      console.log(`[${dex}] Unwrapping WSOL to native SOL...`);
+      await sleep(50);
     }
 
     // Generate mock transaction hash
