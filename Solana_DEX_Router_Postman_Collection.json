@@ -1,0 +1,298 @@
+{
+  "info": {
+    "name": "Solana DEX Order Router API",
+    "description": "Complete API collection for testing the Solana DEX Order Execution Engine with Raydium and Meteora routing",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "dex-router-collection-v1",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "Order Execution",
+      "item": [
+        {
+          "name": "Submit Market Order (WebSocket)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Connection",
+                "value": "Upgrade",
+                "type": "text"
+              },
+              {
+                "key": "Upgrade",
+                "value": "websocket",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "ws://localhost:3000/api/orders/execute",
+              "protocol": "ws",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "orders", "execute"]
+            },
+            "description": "WebSocket endpoint for order submission with real-time status streaming. After connecting, send:\n```json\n{\n  \"type\": \"submit_order\",\n  \"order\": {\n    \"tokenIn\": \"SOL\",\n    \"tokenOut\": \"USDC\",\n    \"amount\": 1.5,\n    \"slippage\": 0.01\n  }\n}\n```"
+          }
+        },
+        {
+          "name": "Get Order by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/orders/:orderId",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "orders", ":orderId"],
+              "variable": [
+                {
+                  "key": "orderId",
+                  "value": "{{lastOrderId}}",
+                  "description": "UUID of the order to retrieve"
+                }
+              ]
+            },
+            "description": "Retrieve complete order details including execution status, selected DEX, prices, and transaction hash"
+          },
+          "response": [
+            {
+              "name": "Successful Order",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:3000/api/orders/:orderId",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "3000",
+                  "path": ["api", "orders", ":orderId"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": \"d74086f2-aaac-41b3-a6eb-58f89bb8f9ea\",\n  \"tokenIn\": \"SOL\",\n  \"tokenOut\": \"USDC\",\n  \"amount\": 1.5,\n  \"slippage\": 0.01,\n  \"type\": \"MARKET\",\n  \"status\": \"confirmed\",\n  \"selectedDex\": \"raydium\",\n  \"raydiumPrice\": 49752.58,\n  \"meteoraPrice\": 48704.57,\n  \"executedPrice\": 49381.41,\n  \"txHash\": \"5ESs3jFLw4Co1Yxpv87Mpd7BZ8LXJmkfLGknek7pexgscAcBDhWXmsmCb3718vP5PYf1L4ccTgkDTabEGVpxNfri\",\n  \"retryCount\": 0,\n  \"createdAt\": \"2025-11-09T04:47:28.123Z\",\n  \"updatedAt\": \"2025-11-09T04:47:31.456Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get All Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/orders?limit=50&offset=0",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "orders"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Number of orders to return (default: 50)"
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Number of orders to skip (default: 0)"
+                }
+              ]
+            },
+            "description": "Retrieve paginated list of all orders with their current status"
+          },
+          "response": [
+            {
+              "name": "Order List",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:3000/api/orders?limit=50&offset=0",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "3000",
+                  "path": ["api", "orders"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"orders\": [\n    {\n      \"id\": \"d74086f2-aaac-41b3-a6eb-58f89bb8f9ea\",\n      \"tokenIn\": \"SOL\",\n      \"tokenOut\": \"USDC\",\n      \"status\": \"confirmed\",\n      \"createdAt\": \"2025-11-09T04:47:28.123Z\"\n    }\n  ],\n  \"total\": 1,\n  \"limit\": 50,\n  \"offset\": 0\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Routing Logs for Order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/orders/:orderId/routing",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "orders", ":orderId", "routing"],
+              "variable": [
+                {
+                  "key": "orderId",
+                  "value": "{{lastOrderId}}",
+                  "description": "UUID of the order"
+                }
+              ]
+            },
+            "description": "Get detailed routing decision data including quotes from both Raydium and Meteora"
+          },
+          "response": [
+            {
+              "name": "Routing Details",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:3000/api/orders/:orderId/routing",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "3000",
+                  "path": ["api", "orders", ":orderId", "routing"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"orderId\": \"d74086f2-aaac-41b3-a6eb-58f89bb8f9ea\",\n  \"raydiumQuote\": {\n    \"provider\": \"raydium\",\n    \"price\": 49752.58,\n    \"fee\": 0.003,\n    \"estimatedOutput\": 74404.98,\n    \"liquidity\": 5000000\n  },\n  \"meteoraQuote\": {\n    \"provider\": \"meteora\",\n    \"price\": 48704.57,\n    \"fee\": 0.002,\n    \"estimatedOutput\": 72910.75,\n    \"liquidity\": 3000000\n  },\n  \"selectedDex\": \"raydium\",\n  \"reason\": \"Raydium offers 2.049% better output (74404.98 vs 72910.75)\",\n  \"timestamp\": \"2025-11-09T04:47:28.234Z\"\n}"
+            }
+          ]
+        }
+      ],
+      "description": "Order submission and retrieval endpoints"
+    },
+    {
+      "name": "Queue Management",
+      "item": [
+        {
+          "name": "Get Queue Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/queue/metrics",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "queue", "metrics"]
+            },
+            "description": "Get real-time queue statistics including job counts, processing rates, and worker status"
+          },
+          "response": [
+            {
+              "name": "Queue Stats",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:3000/api/queue/metrics",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "3000",
+                  "path": ["api", "queue", "metrics"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"waiting\": 0,\n  \"active\": 1,\n  \"completed\": 15,\n  \"failed\": 1,\n  \"delayed\": 0,\n  \"paused\": 0\n}"
+            }
+          ]
+        }
+      ],
+      "description": "Queue monitoring and management"
+    },
+    {
+      "name": "Health & Status",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["health"]
+            },
+            "description": "Check if the server is running and healthy"
+          },
+          "response": [
+            {
+              "name": "Healthy",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:3000/health",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "3000",
+                  "path": ["health"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"healthy\",\n  \"timestamp\": \"2025-11-09T04:47:00.000Z\"\n}"
+            }
+          ]
+        }
+      ],
+      "description": "System health and status endpoints"
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "lastOrderId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
