@@ -14,72 +14,82 @@ const activeConnections = new Map<string, SocketStream>();
 
 export function setupRoutes(fastify: FastifyInstance) {
   /**
-   * GET /api/orders/execute
-   * Submit order and upgrade to WebSocket for status streaming
+   * POST /api/orders/execute
+   * Submit order and return orderId immediately
+   * HTTP → WebSocket upgrade pattern
    */
-  fastify.get('/api/orders/execute', {
-    websocket: true
-  }, async (connection: SocketStream, request: FastifyRequest) => {
-    try {
-      // Parse order from query or initial message
-      let orderInput: OrderInput | null = null;
+  fastify.post<{ Body: OrderInput }>(
+    '/api/orders/execute',
+    async (request, reply) => {
+      const orderInput = request.body;
+
+      // Validate order
+      if (!orderInput.tokenIn || !orderInput.tokenOut || !orderInput.amount) {
+        return reply.code(400).send({
+          error: 'Missing required fields: tokenIn, tokenOut, amount',
+        });
+      }
+
+      // Generate orderId
       const orderId = uuidv4();
 
-        // Listen for initial order data
-        connection.socket.on('message', async (message: Buffer) => {
-          try {
-            const data = JSON.parse(message.toString());
+      // Create order in database
+      const db = new Database();
+      await db.createOrder(orderId, orderInput);
+      await db.close();
 
-            // If this is the order submission
-            if (data.type === 'submit_order' && !orderInput) {
-              orderInput = data.order as OrderInput;
+      // Enqueue for processing
+      await enqueueOrder({ orderId, order: orderInput });
 
-              // Validate order
-              if (!orderInput.tokenIn || !orderInput.tokenOut || !orderInput.amount) {
-                connection.socket.send(JSON.stringify({
-                  type: 'error',
-                  error: 'Missing required fields: tokenIn, tokenOut, amount',
-                }));
-                connection.socket.close();
-                return;
-              }
+      console.log(`📨 Order ${orderId} submitted and queued`);
 
-              // Send orderId acknowledgment
-              connection.socket.send(JSON.stringify({
-                type: 'order_accepted',
-                orderId,
-                timestamp: new Date().toISOString(),
-              }));
+      // Return orderId immediately (HTTP response)
+      return reply.code(201).send({
+        orderId,
+        status: OrderStatus.PENDING,
+        message: 'Order submitted successfully. Connect to WebSocket for status updates.',
+        websocketUrl: `/api/orders/${orderId}/stream`,
+      });
+    }
+  );
 
-              // Store connection
-              activeConnections.set(orderId, connection);
+  /**
+   * GET /api/orders/:orderId/stream
+   * WebSocket endpoint for real-time status updates
+   */
+  fastify.get<{ Params: { orderId: string } }>(
+    '/api/orders/:orderId/stream',
+    { websocket: true },
+    async (connection: SocketStream, request: FastifyRequest<{ Params: { orderId: string } }>) => {
+      const { orderId } = request.params;
 
-              // Create order in database
-              const db = new Database();
-              await db.createOrder(orderId, orderInput);
-              await db.close();
+      try {
+        // Verify order exists
+        const db = new Database();
+        const order = await db.getOrder(orderId);
+        await db.close();
 
-              // Send initial status
-              connection.socket.send(JSON.stringify({
-                type: 'status_update',
-                orderId,
-                status: OrderStatus.PENDING,
-                timestamp: new Date().toISOString(),
-              }));
+        if (!order) {
+          connection.socket.send(JSON.stringify({
+            type: 'error',
+            error: 'Order not found',
+          }));
+          connection.socket.close();
+          return;
+        }
 
-              // Enqueue for processing
-              await enqueueOrder({ orderId, order: orderInput });
+        // Store connection
+        activeConnections.set(orderId, connection);
 
-              console.log(`📨 Order ${orderId} submitted and queued`);
-            }
-          } catch (error: any) {
-            console.error('Error processing message:', error);
-            connection.socket.send(JSON.stringify({
-              type: 'error',
-              error: error.message,
-            }));
-          }
-        });
+        // Send connection acknowledgment
+        connection.socket.send(JSON.stringify({
+          type: 'connected',
+          orderId,
+          currentStatus: order.status,
+          timestamp: new Date().toISOString(),
+        }));
+
+        console.log(`🔌 WebSocket connected for order ${orderId}`);
 
         // Handle disconnection
         connection.socket.on('close', () => {
@@ -100,7 +110,8 @@ export function setupRoutes(fastify: FastifyInstance) {
         }));
         connection.socket.close();
       }
-    });
+    }
+  );
 
   /**
    * GET /api/orders/:orderId
