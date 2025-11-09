@@ -41,7 +41,7 @@ export function setupRoutes(fastify: FastifyInstance) {
       // Enqueue for processing
       await enqueueOrder({ orderId, order: orderInput });
 
-      console.log(`📨 Order ${orderId} submitted and queued`);
+      console.log(`Order ${orderId} submitted and queued`);
 
       // Return orderId immediately (HTTP response)
       return reply.code(201).send({
@@ -89,12 +89,12 @@ export function setupRoutes(fastify: FastifyInstance) {
           timestamp: new Date().toISOString(),
         }));
 
-        console.log(`🔌 WebSocket connected for order ${orderId}`);
+        console.log(`WebSocket connected for order ${orderId}`);
 
         // Handle disconnection
         connection.socket.on('close', () => {
           activeConnections.delete(orderId);
-          console.log(`🔌 WebSocket closed for order ${orderId}`);
+          console.log(`WebSocket closed for order ${orderId}`);
         });
 
         connection.socket.on('error', (error) => {

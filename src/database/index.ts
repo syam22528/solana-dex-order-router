@@ -28,7 +28,7 @@ export class Database {
   async initialize(): Promise<void> {
     try {
       await this.pool.query(schema);
-      console.log('✅ Database schema initialized');
+      console.log('Database schema initialized');
     } catch (error) {
       console.error('❌ Database initialization failed:', error);
       throw error;

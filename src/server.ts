@@ -33,10 +33,10 @@ async function start() {
     await fastify.register(websocketPlugin);
 
     // Initialize database
-    console.log('🔌 Connecting to database...');
+    console.log('Connecting to database...');
     db = new Database();
     await db.initialize();
-    console.log('✅ Database connected');
+    console.log('Database connected');
 
     // Setup routes
     setupRoutes(fastify);
@@ -55,12 +55,12 @@ async function start() {
       host: config.host,
     });
 
-    console.log('\n🚀 Solana DEX Order Router Started!');
-    console.log(`📡 Server: http://${config.host}:${config.port}`);
-    console.log(`🔌 WebSocket: ws://${config.host}:${config.port}/api/orders/execute`);
-    console.log(`📊 Health: http://${config.host}:${config.port}/health`);
-    console.log(`⚙️  Queue: ${config.queue.concurrency} concurrent workers`);
-    console.log(`🎯 Mock Mode: ${config.mock.enabled ? 'ENABLED' : 'DISABLED'}\n`);
+    console.log('\nSolana DEX Order Router Started!');
+    console.log(`Server: http://${config.host}:${config.port}`);
+    console.log(`WebSocket: ws://${config.host}:${config.port}/api/orders/execute`);
+    console.log(`Health: http://${config.host}:${config.port}/health`);
+    console.log(`Queue: ${config.queue.concurrency} concurrent workers`);
+    console.log(`Mock Mode: ${config.mock.enabled ? 'ENABLED' : 'DISABLED'}\n`);
 
     // Graceful shutdown
     const signals = ['SIGINT', 'SIGTERM'];

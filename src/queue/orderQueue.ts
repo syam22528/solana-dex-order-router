@@ -68,13 +68,15 @@ async function processOrder(job: Job<OrderJobData>): Promise<void> {
     emitStatusUpdate(orderId, OrderStatus.ROUTING);
     await db.updateOrderStatus(orderId, OrderStatus.ROUTING);
 
+    console.log(`[${orderId}] Fetching quotes from Raydium and Meteora...`);
+    
     const { raydium, meteora } = await dexRouter.getBothQuotes(
       order.tokenIn,
       order.tokenOut,
       order.amount
     );
 
-    console.log(`[${orderId}] Raydium: $${raydium.price.toFixed(2)} | Meteora: $${meteora.price.toFixed(2)}`);
+    console.log(`[${orderId}] Raydium: $${raydium.price.toFixed(2)} (fee: ${(raydium.fee * 100).toFixed(2)}%) | Meteora: $${meteora.price.toFixed(2)} (fee: ${(meteora.fee * 100).toFixed(2)}%)`);
 
     // Select best DEX
     const { selectedDex, reason } = dexRouter.selectBestDex(raydium, meteora);
@@ -131,7 +133,7 @@ async function processOrder(job: Job<OrderJobData>): Promise<void> {
     }
 
     // Step 4: CONFIRMED - Transaction successful
-    console.log(`[${orderId}] ✅ Swap confirmed! TX: ${swapResult.txHash}`);
+    console.log(`[${orderId}] Swap confirmed! TX: ${swapResult.txHash}`);
 
     await db.updateOrderStatus(orderId, OrderStatus.CONFIRMED, {
       txHash: swapResult.txHash,
@@ -187,7 +189,7 @@ export function createWorker(): Worker {
   });
 
   worker.on('completed', (job) => {
-    console.log(`✅ Job ${job.id} completed successfully`);
+    console.log(`Job ${job.id} completed successfully`);
   });
 
   worker.on('failed', (job, err) => {
@@ -198,7 +200,7 @@ export function createWorker(): Worker {
     console.error('Worker error:', err);
   });
 
-  console.log(`🔧 Worker started with ${config.queue.concurrency} concurrent processors`);
+  console.log(`Worker started with ${config.queue.concurrency} concurrent processors`);
 
   return worker;
 }
