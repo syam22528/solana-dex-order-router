@@ -1,29 +1,21 @@
-# 🚀 Solana DEX Order Router
+# Solana DEX Order Router
 
 > **Backend Task 2: Order Execution Engine** - Eterna Placement Test  
 > A production-ready order execution engine with DEX routing, WebSocket streaming, and concurrent order processing
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.2-blue)](https://www.typescriptlang.org/)
-[![Fastify](https://img.shields.io/badge/Fastify-4.24-green)](https://www.fastify.io/)
-[![BullMQ](https://img.shields.io/badge/BullMQ-4.14-red)](https://docs.bullmq.io/)
+## Table of Contents
 
----
+- [Overview](#overview)
+- [Implementation Choice](#implementation-choice-market-orders)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+- [API Documentation](#api-documentation)
+- [Testing](#testing)
+- [Technology Stack](#technology-stack)
+- [Deployment](#deployment)
 
-## 📋 Table of Contents
-
-- [Overview](#-overview)
-- [Implementation Choice](#-implementation-choice-market-orders)
-- [Features](#-features)
-- [Architecture](#-architecture)
-- [Quick Start](#-quick-start)
-- [API Documentation](#-api-documentation)
-- [Testing](#-testing)
-- [Technology Stack](#-technology-stack)
-- [Deployment](#-deployment)
-
----
-
-## 🎯 Overview
+## Overview
 
 This system processes **Market Orders** with automatic DEX routing between Raydium and Meteora pools. It provides real-time WebSocket status updates throughout the order lifecycle and handles up to 10 concurrent orders with a throughput of 100 orders/minute.
 
@@ -40,14 +32,12 @@ Client submits order
       ↓
    [SUBMITTED] Send to blockchain
       ↓
-   [CONFIRMED] ✅ Success (with txHash)
+   [CONFIRMED] Success (with txHash)
       OR
-   [FAILED] ❌ Error (with retry logic)
+   [FAILED] Error (with retry logic)
 ```
 
----
-
-## 💡 Implementation Choice: Market Orders
+## Implementation Choice: Market Orders
 
 ### Why Market Orders?
 
@@ -55,10 +45,10 @@ Client submits order
 
 **Reasons**:
 
-1. ✅ **Simplest implementation** - No price monitoring required
-2. ✅ **Highest reliability** - Immediate execution, no waiting
-3. ✅ **Real-world relevance** - 80% of retail trades are market orders
-4. ✅ **Predictable flow** - Clear lifecycle from submission to confirmation
+1. **Simplest implementation** - No price monitoring required
+2. **Highest reliability** - Immediate execution, no waiting
+3. **Real-world relevance** - 80% of retail trades are market orders
+4. **Predictable flow** - Clear lifecycle from submission to confirmation
 
 ### How to Extend to Other Types
 
@@ -70,127 +60,63 @@ Client submits order
 
 > Add a token launch event listener connected to Solana WebSocket (subscribeToLogs). When the monitored token program emits a launch event, immediately execute the market order with pre-configured slippage.
 
----
+## Features
 
-## ✨ Features
+### Core Requirements
 
-### Core Requirements ✅
-
-| Requirement               | Implementation                          | Status      |
-| ------------------------- | --------------------------------------- | ----------- |
-| **Order Type**            | Market Order (immediate execution)      | ✅ Complete |
-| **DEX Router**            | Raydium + Meteora price comparison      | ✅ Complete |
-| **HTTP → WebSocket**      | Single endpoint with connection upgrade | ✅ Complete |
-| **Concurrent Processing** | 10 concurrent workers, 100/min          | ✅ Complete |
-| **Retry Logic**           | Exponential backoff, max 3 attempts     | ✅ Complete |
-| **Database**              | PostgreSQL + Redis persistence          | ✅ Complete |
-| **Status Updates**        | Real-time WebSocket streaming           | ✅ Complete |
+| Requirement               | Implementation                          | Status   |
+| ------------------------- | --------------------------------------- | -------- |
+| **Order Type**            | Market Order (immediate execution)      | Complete |
+| **DEX Router**            | Raydium + Meteora price comparison      | Complete |
+| **HTTP → WebSocket**      | Single endpoint with connection upgrade | Complete |
+| **Concurrent Processing** | 10 concurrent workers, 100/min          | Complete |
+| **Retry Logic**           | Exponential backoff, max 3 attempts     | Complete |
+| **Database**              | PostgreSQL + Redis persistence          | Complete |
+| **Status Updates**        | Real-time WebSocket streaming           | Complete |
 
 ### Additional Features
 
-- ✅ **Routing Logs** - Transparent DEX selection decisions
-- ✅ **Queue Metrics** - Real-time processing statistics
-- ✅ **Mock Implementation** - Realistic DEX simulation with delays
-- ✅ **Error Handling** - Comprehensive error messages and recovery
-- ✅ **Type Safety** - Full TypeScript implementation
+- **Routing Logs** - Transparent DEX selection decisions
+- **Queue Metrics** - Real-time processing statistics
+- **Mock Implementation** - Realistic DEX simulation with delays
+- **Error Handling** - Comprehensive error messages and recovery
+- **Type Safety** - Full TypeScript implementation
 
----
+## Architecture
 
-## 🏗️ Architecture
+The system is built around a queue-based processing pipeline that handles orders asynchronously. Here's how it works:
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                     CLIENT                                │
-│  WebSocket Connection: ws://localhost:3000/api/orders/   │
-│                        execute                            │
-└────────────────────┬─────────────────────────────────────┘
-                     │
-                     │ 1. Submit Order
-                     ↓
-┌─────────────────────────────────────────────────────────┐
-│              FASTIFY SERVER (Port 3000)                  │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │         /api/orders/execute (WebSocket)         │   │
-│  │  - Accept order                                 │   │
-│  │  - Return orderId                               │   │
-│  │  - Stream status updates                        │   │
-│  └────────────────────┬────────────────────────────┘   │
-└────────────────────────┼──────────────────────────────┘
-                         │ 2. Enqueue
-                         ↓
-┌─────────────────────────────────────────────────────────┐
-│                    BULLMQ QUEUE                          │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │  Worker Pool (10 concurrent)                     │  │
-│  │  Rate Limit: 100 orders/min                      │  │
-│  │  Retry: Exponential backoff (max 3)              │  │
-│  └──────────────────┬───────────────────────────────┘  │
-│                     │                                    │
-│          ┌──────────┴──────────┐                        │
-│          ↓                     ↓                        │
-│     [REDIS QUEUE]         [REDIS CACHE]                 │
-│   (Job persistence)      (Active orders)                │
-└──────────────────┬──────────────────────────────────────┘
-                   │ 3. Process Order
-                   ↓
-┌─────────────────────────────────────────────────────────┐
-│              ORDER PROCESSOR                             │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │  Step 1: ROUTING                                 │  │
-│  │  ┌────────────────┐    ┌────────────────┐       │  │
-│  │  │ Raydium Quote  │    │ Meteora Quote  │       │  │
-│  │  │ Price: $50,100 │    │ Price: $50,150 │       │  │
-│  │  │ Fee: 0.3%      │    │ Fee: 0.2%      │       │  │
-│  │  │ Output: 75,150 │    │ Output: 75,225 │       │  │
-│  │  └────────────────┘    └────────────────┘       │  │
-│  │           ↓                      ↓                │  │
-│  │           └──────────┬───────────┘                │  │
-│  │                      ↓                            │  │
-│  │            [Select Best DEX]                      │  │
-│  │        (Meteora: 0.099% better)                   │  │
-│  └──────────────────────┬───────────────────────────┘  │
-│                         │                               │
-│  ┌──────────────────────┴───────────────────────────┐  │
-│  │  Step 2: BUILDING                                │  │
-│  │  - Create swap transaction                       │  │
-│  │  - Apply slippage protection                     │  │
-│  └──────────────────────┬───────────────────────────┘  │
-│                         │                               │
-│  ┌──────────────────────┴───────────────────────────┐  │
-│  │  Step 3: SUBMITTED                               │  │
-│  │  - Send transaction to blockchain (mock)         │  │
-│  └──────────────────────┬───────────────────────────┘  │
-│                         │                               │
-│  ┌──────────────────────┴───────────────────────────┐  │
-│  │  Step 4: CONFIRMED                               │  │
-│  │  - Transaction successful                        │  │
-│  │  - Generate txHash                               │  │
-│  │  - Calculate executed price                      │  │
-│  └──────────────────────┬───────────────────────────┘  │
-└────────────────────────┼───────────────────────────────┘
-                         │ 4. Persist Result
-                         ↓
-┌─────────────────────────────────────────────────────────┐
-│                   POSTGRESQL                             │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │  orders (Order history)                          │  │
-│  │  - id, token_in, token_out, amount               │  │
-│  │  - status, selected_dex, prices                  │  │
-│  │  - tx_hash, error, retry_count                   │  │
-│  └──────────────────────────────────────────────────┘  │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │  routing_logs (DEX decisions)                    │  │
-│  │  - raydium_price, meteora_price                  │  │
-│  │  - selected_dex, reason                          │  │
-│  └──────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
+**Request Flow**
 
-         ↑ All status updates streamed to client via WebSocket ↑
+When a client submits an order through the WebSocket endpoint at `/api/orders/execute`, the Fastify server immediately returns an order ID and keeps the WebSocket connection open. The order gets pushed into a BullMQ queue backed by Redis. We run 10 concurrent workers to process orders with a rate limit of 100 orders per minute.
+
+**DEX Routing**
+
+Each order goes through a routing phase where we fetch quotes from both Raydium and Meteora simultaneously. Raydium typically charges 0.3% fees while Meteora charges 0.2%. The system compares the output amounts and selects whichever DEX gives better value. For example, if you're swapping USDC for SOL, and Raydium quotes 75,150 lamports output while Meteora quotes 75,225 lamports, we'll route to Meteora since it's 0.099% better.
+
+**Order Processing**
+
+After selecting the best DEX, the order moves through four states:
+
+1. **ROUTING** - Fetch quotes from both DEXs and pick the winner
+2. **BUILDING** - Construct the swap transaction with slippage protection
+3. **SUBMITTED** - Send transaction to blockchain (currently mocked)
+4. **CONFIRMED** - Transaction completes, we get the txHash and final executed price
+
+If anything fails during processing, the order retries up to 3 times with exponential backoff (1s, 2s, 4s delays).
+
+**Data Storage**
+
+We use PostgreSQL to store two things: the `orders` table keeps full order history including status, selected DEX, prices, transaction hash, and retry count. The `routing_logs` table records every routing decision with the quotes from both DEXs and why we picked one over the other.
+
+Redis handles two roles: it persists the BullMQ job queue and caches active orders that are currently being processed.
+
+**Real-time Updates**
+
+Throughout the entire process, every status change gets streamed back to the client over the WebSocket connection. The client sees PENDING → ROUTING → BUILDING → SUBMITTED → CONFIRMED with details like which DEX was selected and the final transaction hash.
 ```
 
----
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -228,9 +154,7 @@ curl http://localhost:3000/health
 # {"status":"healthy","timestamp":"...","queue":{...}}
 ```
 
----
-
-## 📡 API Documentation
+## API Documentation
 
 ### 1. Submit Order (WebSocket)
 
@@ -244,7 +168,7 @@ const WebSocket = require("ws");
 const ws = new WebSocket("ws://localhost:3000/api/orders/execute");
 
 ws.on("open", () => {
-  console.log("✅ Connected to order execution engine");
+  console.log("Connected to order execution engine");
 
   // Submit order
   ws.send(
@@ -265,28 +189,28 @@ ws.on("message", (data) => {
 
   switch (message.type) {
     case "order_accepted":
-      console.log(`📝 Order ID: ${message.orderId}`);
+      console.log(`Order ID: ${message.orderId}`);
       break;
 
     case "status_update":
-      console.log(`📊 Status: ${message.status}`);
-      console.log(`   Data:`, message.data);
+      console.log(`Status: ${message.status}`);
+      console.log(`Data:`, message.data);
 
       if (message.status === "confirmed") {
-        console.log(`✅ CONFIRMED!`);
-        console.log(`   TX Hash: ${message.data.txHash}`);
-        console.log(`   Price: $${message.data.executedPrice}`);
+        console.log(`CONFIRMED!`);
+        console.log(`TX Hash: ${message.data.txHash}`);
+        console.log(`Price: $${message.data.executedPrice}`);
         ws.close();
       }
 
       if (message.status === "failed") {
-        console.log(`❌ FAILED: ${message.data.error}`);
+        console.log(`FAILED: ${message.data.error}`);
         ws.close();
       }
       break;
 
     case "error":
-      console.error(`❌ Error: ${message.error}`);
+      console.error(`Error: ${message.error}`);
       ws.close();
       break;
   }
@@ -355,7 +279,7 @@ ws.on("message", (data) => {
 }
 ```
 
-**6. Confirmed ✅**
+**6. Confirmed**
 
 ```json
 {
@@ -371,7 +295,7 @@ ws.on("message", (data) => {
 }
 ```
 
-**7. Failed ❌**
+**7. Failed**
 
 ```json
 {
@@ -509,9 +433,7 @@ GET /health
 }
 ```
 
----
-
-## 🧪 Testing
+## Testing
 
 ### Interactive Testing with wscat
 
@@ -555,9 +477,7 @@ wscat -c ws://localhost:3000/api/orders/execute
 watch -n 1 'curl -s http://localhost:3000/api/queue/metrics | jq'
 ```
 
----
-
-## 🧪 Unit & Integration Tests
+## Unit & Integration Tests
 
 ```bash
 # Run all tests
@@ -572,14 +492,14 @@ npm run test:watch
 
 ### Test Coverage
 
-✅ **Unit Tests**:
+**Unit Tests**:
 
 - DEX Router logic (price comparison, DEX selection)
 - Database operations (CRUD, transactions)
 - Queue behavior (enqueue, retry, rate limiting)
 - Status update broadcasting
 
-✅ **Integration Tests**:
+**Integration Tests**:
 
 - Full order lifecycle (submit → confirm)
 - WebSocket connection/disconnection
@@ -588,7 +508,7 @@ npm run test:watch
 
 ---
 
-## 🔧 Technology Stack
+## Technology Stack
 
 | Component             | Technology      | Version | Purpose                 |
 | --------------------- | --------------- | ------- | ----------------------- |
@@ -604,7 +524,7 @@ npm run test:watch
 
 ---
 
-## 📊 DEX Routing Logic
+## DEX Routing Logic
 
 ### Price Comparison Algorithm
 
@@ -646,14 +566,14 @@ METEORA:
   Output: 75,225 USDC
   Liquidity: $3.8M
 
-DECISION: ✅ Meteora
+DECISION: Meteora
 REASON: 0.099% better output (75,225 vs 75,150)
         Despite 32% lower liquidity, price advantage wins
 ```
 
 ---
 
-## 📈 Performance Characteristics
+## Performance Characteristics
 
 | Metric             | Value               | Note               |
 | ------------------ | ------------------- | ------------------ |
@@ -664,9 +584,7 @@ REASON: 0.099% better output (75,225 vs 75,150)
 | **Retry Policy**   | Exponential backoff | Max 3 attempts     |
 | **Initial Delay**  | 1 second            | Doubles per retry  |
 
----
-
-## 🚀 Deployment
+## Deployment
 
 ### Environment Variables
 
@@ -721,9 +639,7 @@ railway up
 3. Set environment variables
 4. Deploy!
 
----
-
-## 📂 Project Structure
+## Project Structure
 
 ```
 eterna_dev_test/
@@ -755,23 +671,19 @@ eterna_dev_test/
 └── README.md                     # This file
 ```
 
----
-
-## 🎥 Demo Video
+## Demo Video
 
 **YouTube Link**: [1-2 minute demo showing]
 
-- ✅ 5 simultaneous order submissions
-- ✅ Real-time WebSocket status updates
-- ✅ DEX routing decisions in console logs
-- ✅ Queue processing metrics
-- ✅ Order confirmation with transaction hashes
+- 5 simultaneous order submissions
+- Real-time WebSocket status updates
+- DEX routing decisions in console logs
+- Queue processing metrics
+- Order confirmation with transaction hashes
 
----
+## Postman Collection
 
-## 📮 Postman Collection
-
-Import `postman_collection.json` for ready-to-use API tests:
+**Import** `postman_collection.json` for ready-to-use API tests:
 
 - **WebSocket Order Submission** - Connect + submit order
 - **Get Order Status** - Query order by ID
@@ -780,9 +692,7 @@ Import `postman_collection.json` for ready-to-use API tests:
 - **Queue Metrics** - Processing statistics
 - **Health Check** - System status
 
----
-
-## 🤝 Contributing
+## Contributing
 
 This is a placement test submission. For production use, consider:
 
@@ -793,15 +703,11 @@ This is a placement test submission. For production use, consider:
 - Implement rate limiting per user
 - Add comprehensive logging
 
----
-
-## 📄 License
+## License
 
 MIT License - See LICENSE file for details
 
----
-
-## 🙋 Support & Questions
+## Support & Questions
 
 For questions about this implementation:
 
@@ -812,7 +718,7 @@ For questions about this implementation:
 
 ---
 
-## 📝 Design Decisions Summary
+## Design Decisions Summary
 
 1. **Market Orders**: Simplest for high reliability
 2. **Mock DEX**: Focus on architecture, easy to extend
@@ -823,13 +729,11 @@ For questions about this implementation:
 
 ---
 
-**Built with ❤️ for Eterna Placement Test**
+**Built for Eterna Placement Test**
 
 _Market Orders | DEX Routing | WebSocket Streaming | Production-Ready Architecture_
 
----
-
-## 🎉 Ready to Test!
+## Ready to Test
 
 ```bash
 # Start the system
@@ -841,5 +745,5 @@ npx wscat -c ws://localhost:3000/api/orders/execute
 # Send an order
 {"type":"submit_order","order":{"tokenIn":"SOL","tokenOut":"USDC","amount":1.5}}
 
-# Watch the magic happen! ✨
+# Watch the order execution
 ```
