@@ -68,6 +68,7 @@ Client submits order
 | ------------------------- | --------------------------------------- | -------- |
 | **Order Type**            | Market Order (immediate execution)      | Complete |
 | **DEX Router**            | Raydium + Meteora price comparison      | Complete |
+| **Wrapped SOL Handling**  | Automatic SOL ↔ WSOL conversion         | Complete |
 | **HTTP → WebSocket**      | Single endpoint with connection upgrade | Complete |
 | **Concurrent Processing** | 10 concurrent workers, 100/min          | Complete |
 | **Retry Logic**           | Exponential backoff, max 3 attempts     | Complete |
@@ -93,6 +94,10 @@ When a client submits an order through the WebSocket endpoint at `/api/orders/ex
 **DEX Routing**
 
 Each order goes through a routing phase where we fetch quotes from both Raydium and Meteora simultaneously. Raydium typically charges 0.3% fees while Meteora charges 0.2%. The system compares the output amounts and selects whichever DEX gives better value. For example, if you're swapping USDC for SOL, and Raydium quotes 75,150 lamports output while Meteora quotes 75,225 lamports, we'll route to Meteora since it's 0.099% better.
+
+**Wrapped SOL Handling**
+
+When swapping native SOL, the system automatically handles wrapping/unwrapping to WSOL (Wrapped SOL) since DEXs require SPL tokens. If you're selling SOL, it wraps SOL → WSOL before the swap. If you're buying SOL, it unwraps WSOL → SOL after the swap. This happens transparently with ~50ms overhead per operation.
 
 **Order Processing**
 
